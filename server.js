@@ -13,7 +13,7 @@ const upload = multer({
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://lynn800741.github.io'
+    'https://milkteacat0.github.io'
   ]
 }));
 
