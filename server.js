@@ -21,9 +21,14 @@ const openai = new OpenAI({
 
 // 健康檢查
 app.get('/', (req, res) => {
+  // 檢查 API Key 是否存在（不要顯示實際的 key）
+  const hasApiKey = !!process.env.OPENAI_API_KEY;
+  console.log('API Key 狀態:', hasApiKey ? '已設置' : '未設置');
+  
   res.json({ 
     status: 'ok', 
     message: '萬物價格掃描器 API 運行中',
+    hasApiKey: hasApiKey,
     endpoints: {
       health: '/api/health',
       analyze: '/api/analyze (POST)'
@@ -38,12 +43,17 @@ app.get('/api/health', (req, res) => {
 // 主要的圖片分析端點
 app.post('/api/analyze', upload.single('image'), async (req, res) => {
   try {
+    console.log('收到分析請求');
+    
     if (!req.file) {
+      console.log('未提供圖片');
       return res.status(400).json({ 
         success: false,
         error: '請提供圖片' 
       });
     }
+
+    console.log('圖片大小:', req.file.size);
 
     // 檢查 OpenAI API Key
     if (!process.env.OPENAI_API_KEY) {
@@ -55,6 +65,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
     }
 
     const base64Image = req.file.buffer.toString('base64');
+    console.log('圖片轉換為 base64');
 
     // 獲取自定義問題
     const customQuestion = req.body.question || "這個東西多少錢？哪裡可以買到？";
@@ -69,6 +80,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
 
 請用中文回答，並保持專業客觀的語氣。`;
 
+    console.log('開始呼叫 OpenAI API');
     const response = await openai.chat.completions.create({
       model: "gpt-4-vision-preview",
       messages: [
@@ -87,12 +99,15 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
       ],
       max_tokens: 1000
     });
+    console.log('OpenAI API 回應成功');
 
     // 解析 AI 回應
     const analysis = response.choices[0].message.content;
+    console.log('AI 回應:', analysis);
     
     // 將回應轉換為結構化數據
     const data = parseAnalysis(analysis);
+    console.log('解析後的數據:', data);
 
     res.json({
       success: true,
@@ -103,7 +118,7 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
     console.error('分析錯誤:', error);
     res.status(500).json({
       success: false,
-      error: '分析失敗，請稍後再試'
+      error: error.message || '分析失敗，請稍後再試'
     });
   }
 });
