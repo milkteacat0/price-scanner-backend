@@ -9,13 +9,8 @@ const upload = multer({
   storage: multer.memoryStorage()
 });
 
-// CORS 設定
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://milkteacat0.github.io'
-  ]
-}));
+// CORS 設定 - 允許所有來源
+app.use(cors());
 
 app.use(express.json());
 
