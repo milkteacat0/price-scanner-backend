@@ -56,12 +56,17 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     service: 'GPT-4 Vision 價格掃描器 API',
     timestamp: new Date().toISOString(),
-    environment: {
-      nodeEnv: process.env.NODE_ENV || 'not-set',
-      hasApiKey: !!process.env.OPENAI_API_KEY,
-      apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+    diagnostics: {
+      uptime: process.uptime(),
+      environment: {
+        nodeEnv: process.env.NODE_ENV || 'not-set',
+        hasApiKey: !!process.env.OPENAI_API_KEY,
+        apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+      }
     }
   };
+  
+  console.log('健康檢查診斷信息:', healthCheck);
   res.json(healthCheck);
 });
 
