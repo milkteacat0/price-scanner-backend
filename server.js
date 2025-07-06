@@ -21,14 +21,19 @@ const openai = new OpenAI({
 
 // 健康檢查
 app.get('/', (req, res) => {
-  // 檢查 API Key 是否存在（不要顯示實際的 key）
-  const hasApiKey = !!process.env.OPENAI_API_KEY;
-  console.log('API Key 狀態:', hasApiKey ? '已設置' : '未設置');
+  // 檢查環境變數
+  const diagnostics = {
+    hasApiKey: !!process.env.OPENAI_API_KEY,
+    nodeEnv: process.env.NODE_ENV,
+    apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+  };
+  
+  console.log('診斷信息:', diagnostics);
   
   res.json({ 
     status: 'ok', 
     message: '萬物價格掃描器 API 運行中',
-    hasApiKey: hasApiKey,
+    diagnostics: diagnostics,
     endpoints: {
       health: '/api/health',
       analyze: '/api/analyze (POST)'
@@ -38,6 +43,24 @@ app.get('/', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'GPT-4o 價格掃描器 API' });
+});
+
+// 添加一個專門的診斷端點
+app.get('/api/diagnostics', (req, res) => {
+  const diagnostics = {
+    timestamp: new Date().toISOString(),
+    environment: {
+      nodeEnv: process.env.NODE_ENV,
+      hasApiKey: !!process.env.OPENAI_API_KEY,
+      apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+    },
+    versions: {
+      node: process.version,
+      openai: require('openai/package.json').version
+    }
+  };
+  
+  res.json(diagnostics);
 });
 
 // 主要的圖片分析端點
