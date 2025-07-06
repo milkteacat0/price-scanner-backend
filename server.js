@@ -21,11 +21,18 @@ const openai = new OpenAI({
 
 // 健康檢查
 app.get('/', (req, res) => {
-  // 檢查環境變數
+  // 檢查環境變數和版本信息
   const diagnostics = {
-    hasApiKey: !!process.env.OPENAI_API_KEY,
-    nodeEnv: process.env.NODE_ENV,
-    apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+    timestamp: new Date().toISOString(),
+    environment: {
+      nodeEnv: process.env.NODE_ENV || 'not-set',
+      hasApiKey: !!process.env.OPENAI_API_KEY,
+      apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+    },
+    versions: {
+      node: process.version,
+      openai: require('openai/package.json').version
+    }
   };
   
   console.log('診斷信息:', diagnostics);
@@ -42,7 +49,13 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'GPT-4o 價格掃描器 API' });
+  const healthCheck = {
+    status: 'ok',
+    service: 'GPT-4 Vision 價格掃描器 API',
+    timestamp: new Date().toISOString(),
+    hasApiKey: !!process.env.OPENAI_API_KEY
+  };
+  res.json(healthCheck);
 });
 
 // 添加一個專門的診斷端點
