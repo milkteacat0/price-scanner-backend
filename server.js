@@ -39,7 +39,19 @@ app.get('/api/health', (req, res) => {
 app.post('/api/analyze', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: '請提供圖片' });
+      return res.status(400).json({ 
+        success: false,
+        error: '請提供圖片' 
+      });
+    }
+
+    // 檢查 OpenAI API Key
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('未設置 OPENAI_API_KEY');
+      return res.status(500).json({ 
+        success: false,
+        error: 'OpenAI API 設定錯誤' 
+      });
     }
 
     const base64Image = req.file.buffer.toString('base64');
@@ -47,82 +59,18 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
     // 獲取自定義問題
     const customQuestion = req.body.question || "這個東西多少錢？哪裡可以買到？";
 
-    // 萬物價格掃描提示詞
-    const prompt = `你是萬物價格評估專家，任何東西都能給出價格！
+    // 準備 prompt
+    const prompt = `請分析這張圖片中的物品，並提供以下資訊：
+1. 物品名稱
+2. 預估價格範圍
+3. 購買管道（實體店面和線上商城）
+4. 物品描述
+5. 歷史起源（如果適用）
 
-核心原則：
-1. 萬物皆有價格 - 從一支筆到整個太陽
-2. 無法購買的東西用創意方式計算價值
-3. 保持專業但帶幽默感
-4. 絕對禁止說「無價」或「無法估價」
-
-分析步驟：
-1. 詳細描述看到的物品（包含所有細節）
-2. 識別具體是什麼（品牌、型號、種類等）
-3. 給出合理或創意的價格
-
-特殊物品定價原則：
-- 太陽/月亮/星球：用科學方式計算（如能源價值、稀有元素）
-- 建築物：估算建造成本+地價
-- 動物：強調生命無價但給出飼養成本
-- 人：幽默回應並計算「培養成本」
-- 藝術品/古董：根據市場行情
-- 大自然景觀：用觀光價值或保護成本計算
-
-如果是商品：
-- 識別具體品牌和型號
-- 不要只說「玩具」「家電」這種模糊分類
-- 根據特徵推測最可能的產品
-
-回應必須是JSON格式：
-{
-  "name": "具體名稱（如：野獸國 D-Stage 死侍雕像、太陽、台北101大樓）",
-  "price": "NT$ 具體金額或範圍",
-  "priceNote": "價格說明（如何計算或為何是這個價格）",
-  "description": "詳細描述所有看到的特徵",
-  "origin": "物品的歷史、背景或有趣知識",
-  "material": "材質或組成",
-  "usage": "用途或功能",
-  "category": "分類",
-  "brand": "品牌（如果有）",
-  "size": "尺寸或規模",
-  "weight": "重量或質量",
-  "warranty": "保固或壽命",
-  "availability": "哪裡可以買到或如何獲得",
-  "popularityScore": 1-100,
-  "ecoScore": 1-100,
-  "durability": "耐用度或存在時間",
-  "maintenance": "保養或維護方式",
-  "tips": [
-    "購買或獲得建議1",
-    "購買或獲得建議2",
-    "購買或獲得建議3"
-  ],
-  "relatedItems": [
-    {"icon": "🔗", "name": "相關物品1"},
-    {"icon": "🔍", "name": "相關物品2"},
-    {"icon": "💡", "name": "相關物品3"}
-  ],
-  "purchaseLinks": {
-    "online": [
-      {"platform": "蝦皮購物", "searchTerm": "具體搜尋關鍵字"},
-      {"platform": "PChome 24h", "searchTerm": "具體搜尋關鍵字"},
-      {"platform": "momo購物網", "searchTerm": "具體搜尋關鍵字"},
-      {"platform": "露天拍賣", "searchTerm": "具體搜尋關鍵字"},
-      {"platform": "Yahoo拍賣", "searchTerm": "具體搜尋關鍵字"}
-    ],
-    "offline": [
-      "實體店面或地點1",
-      "實體店面或地點2"
-    ]
-  }
-}
-
-記住：要像偵探一樣分析每個細節，給出最準確的識別結果！
-使用繁體中文回應。`;
+請用中文回答，並保持專業客觀的語氣。`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-vision-preview",
       messages: [
         {
           role: "user",
@@ -131,35 +79,89 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
             {
               type: "image_url",
               image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
-                detail: "high"  // 高解析度分析每個細節
+                url: `data:image/jpeg;base64,${base64Image}`
               }
             }
           ]
         }
       ],
-      max_tokens: 2000,  // 增加到2000以容納更詳細的分析
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+      max_tokens: 1000
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    // 解析 AI 回應
+    const analysis = response.choices[0].message.content;
     
+    // 將回應轉換為結構化數據
+    const data = parseAnalysis(analysis);
+
     res.json({
       success: true,
-      data: result
+      data: data
     });
 
   } catch (error) {
     console.error('分析錯誤:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       error: '分析失敗，請稍後再試'
     });
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`伺服器運行在 port ${PORT}`);
+// 解析 AI 回應
+function parseAnalysis(text) {
+  // 預設值
+  const result = {
+    name: '未知物品',
+    price: '無法估計',
+    priceNote: '價格可能因地區和通路而異',
+    description: '無描述',
+    availability: '無購買資訊',
+    origin: '',
+    purchaseLinks: {
+      online: [
+        { platform: '蝦皮購物', searchTerm: '' },
+        { platform: 'PChome 24h', searchTerm: '' },
+        { platform: 'momo購物網', searchTerm: '' }
+      ]
+    }
+  };
+
+  try {
+    // 分析文本中的關鍵資訊
+    const lines = text.split('\n');
+    let currentSection = '';
+
+    for (const line of lines) {
+      if (line.includes('物品名稱')) {
+        result.name = line.split('：')[1]?.trim() || result.name;
+        result.purchaseLinks.online.forEach(link => {
+          link.searchTerm = result.name;
+        });
+      }
+      else if (line.includes('預估價格')) {
+        result.price = line.split('：')[1]?.trim() || result.price;
+      }
+      else if (line.includes('購買管道')) {
+        result.availability = line.split('：')[1]?.trim() || result.availability;
+      }
+      else if (line.includes('物品描述')) {
+        result.description = line.split('：')[1]?.trim() || result.description;
+      }
+      else if (line.includes('歷史起源')) {
+        result.origin = line.split('：')[1]?.trim() || result.origin;
+      }
+    }
+
+  } catch (error) {
+    console.error('解析錯誤:', error);
+  }
+
+  return result;
+}
+
+// 啟動服務器
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`服務器運行於 port ${port}`);
 });
