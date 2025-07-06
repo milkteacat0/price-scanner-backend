@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const OpenAI = require('openai');
+const { OpenAI } = require('openai');
 
 const app = express();
 const upload = multer({ 
@@ -9,8 +9,12 @@ const upload = multer({
   storage: multer.memoryStorage()
 });
 
-// CORS 設定 - 允許所有來源
-app.use(cors());
+// 啟用 CORS
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(express.json());
 
