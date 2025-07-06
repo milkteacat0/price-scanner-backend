@@ -19,23 +19,26 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// 顯示啟動信息
+console.log('服務啟動診斷：', {
+  nodeEnv: process.env.NODE_ENV || 'not-set',
+  hasApiKey: !!process.env.OPENAI_API_KEY,
+  apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+});
+
 // 健康檢查
-app.get('/', (req, res) => {
-  // 檢查環境變數和版本信息
+app.get('/', async (req, res) => {
   const diagnostics = {
+    uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     environment: {
       nodeEnv: process.env.NODE_ENV || 'not-set',
       hasApiKey: !!process.env.OPENAI_API_KEY,
       apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
-    },
-    versions: {
-      node: process.version,
-      openai: require('openai/package.json').version
     }
   };
   
-  console.log('診斷信息:', diagnostics);
+  console.log('根路由診斷信息:', diagnostics);
   
   res.json({ 
     status: 'ok', 
@@ -53,7 +56,11 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     service: 'GPT-4 Vision 價格掃描器 API',
     timestamp: new Date().toISOString(),
-    hasApiKey: !!process.env.OPENAI_API_KEY
+    environment: {
+      nodeEnv: process.env.NODE_ENV || 'not-set',
+      hasApiKey: !!process.env.OPENAI_API_KEY,
+      apiKeyPrefix: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.substring(0, 3) : 'not-set'
+    }
   };
   res.json(healthCheck);
 });
